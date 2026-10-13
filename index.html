@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="de"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>FC27 ÜV-Listen</title>
+<style>
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);--bg:#f5f6f8;--card:#fff;--tx:#14181f;--mut:#667085;--ac:#16a34a;--bd:#e3e6eb}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0e1116;--card:#171b22;--tx:#e8ecf2;--mut:#8b95a5;--ac:#34d399;--bd:#2a313c}}
+:root[data-theme="dark"]{--bg:#0e1116;--card:#171b22;--tx:#e8ecf2;--mut:#8b95a5;--ac:#34d399;--bd:#2a313c}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif}
+main{max-width:860px;margin:0 auto;padding:16px}
+h1{font-size:22px;margin:4px 0 2px}p.s{color:var(--mut);margin:0 0 14px;font-size:13px}
+.c{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:14px;margin-bottom:14px}
+.g{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+label{display:block;font-size:12px;color:var(--mut);margin-bottom:3px}
+input,select,textarea,button{font:inherit;color:var(--tx);background:var(--bg);border:1px solid var(--bd);border-radius:8px;padding:8px;width:100%;box-sizing:border-box}
+button{background:var(--ac);color:#fff;border:0;font-weight:600;cursor:pointer;margin-top:12px}
+.w{overflow-x:auto}table{border-collapse:collapse;width:100%;min-width:520px}
+th,td{padding:6px 8px;text-align:right;border-bottom:1px solid var(--bd);white-space:nowrap}
+th:first-child,td:first-child{text-align:left}th{font-size:12px;color:var(--mut)}
+.p{color:var(--ac);font-weight:600}.t{display:flex;gap:18px;flex-wrap:wrap;margin-top:10px}.t b{display:block;font-size:17px}
+small{color:var(--mut)}textarea{min-height:70px}
+</style></head><body><main>
+<h1>FC27 ÜV-Listen</h1>
+<p class="s" id="st"></p>
+<div class="c"><div class="g">
+<div><label>Plattform</label><select id="pf"><option value="0">PlayStation</option><option value="0">Xbox</option><option value="1">PC</option></select></div>
+<div><label>Gesamtbudget (Coins)</label><input id="bu" type="number" value="500000" min="1000"></div>
+<div><label>Anzahl Spieler</label><input id="n" type="number" value="20" min="1"></div>
+<div><label>Aufschlag</label><select id="md"><option value="0.6">Vorsichtig</option><option value="1" selected>Normal</option><option value="1.5">Mutig</option></select></div>
+</div><button id="go">Liste erstellen</button></div>
+<div class="c" id="out" hidden><div class="w"><table><thead><tr><th>Spieler</th><th>Rating</th><th>Einkauf</th><th>ÜV-Preis</th><th>Gewinn nach Steuer</th></tr></thead><tbody id="tb"></tbody></table></div>
+<div class="t" id="sum"></div><small id="note"></small></div>
+<div class="c"><b>Gewinnrechner</b><div class="g" style="margin-top:8px"><div><label>Kaufpreis</label><input id="k" type="number" value="2200"></div><div><label>Verkaufspreis</label><input id="v" type="number" value="2700"></div></div><p id="gr" class="p" style="margin:10px 0 0"></p></div>
+</main>
+<script>
+var $=function(i){return document.getElementById(i)},cards=[];
+function pp(s){s=String(s).trim().toUpperCase().replace(",",".");var m=s.slice(-1)=="K"?1e3:s.slice(-1)=="M"?1e6:1;return Math.round(parseFloat(s)*m)||0}
+function fmt(x){return x.toLocaleString("de-DE")}
+function step(p){return p<1000?50:p<10000?100:p<50000?250:p<100000?500:1000}
+function up(p){var s=step(p);return Math.ceil(p/s)*s}
+function mk(p,f){var m=p<1000?.3*p:p<5000?2000:p<10000?4000:p<20000?7500:Math.max(1e4,.15*p);return up(p+m*f)}
+function init(){fetch("prices.json?t="+Date.now()).then(function(r){if(!r.ok)throw 0;return r.json()}).then(function(d){cards=d.cards;var m=Math.round((Date.now()-new Date(d.updated))/6e4);$("st").textContent=cards.length+" Karten · Preise vor "+m+" Min. aktualisiert (aktualisiert sich automatisch)"}).catch(function(){$("st").textContent="Preise konnten nicht geladen werden."})}
+function gen(){var pf=$("pf").selectedIndex==2?1:0,B=+$("bu").value,N=Math.max(1,+$("n").value),f=+$("md").value,per=B/N;
+var pool=cards.filter(function(c){return c.p[pf]>0&&c.p[pf]<=per}).sort(function(a,b){return b.b-a.b});
+var good=pool.filter(function(c){return c.p[pf]>=per*.35}),rest=pool.filter(function(c){return c.p[pf]<per*.35});
+var pick=good.concat(rest).slice(0,N),h="",cost=0,rev=0;
+pick.forEach(function(c){var k=c.p[pf],u=mk(k,f),g=Math.floor(u*.95)-k;cost+=k;rev+=g;
+h+="<tr><td>"+c.n.replace(/</g,"&lt;")+"</td><td>"+c.r+"</td><td>"+fmt(k)+"</td><td>"+fmt(u)+"</td><td class='p'>+"+fmt(g)+"</td></tr>"});
+$("tb").innerHTML=h||"<tr><td colspan=5>Keine Karte unter "+fmt(Math.round(per))+" Coins im Datenstamm. Günstigste Karte: "+fmt(Math.min.apply(null,cards.map(function(c){return c.p[pf]}).filter(Boolean)))+" Coins.</td></tr>";
+$("sum").innerHTML="<div><small>Karten</small><b>"+pick.length+" / "+N+"</b></div><div><small>Einkauf gesamt</small><b>"+fmt(cost)+"</b></div><div><small>Gewinn wenn alle verkauft</small><b class='p'>+"+fmt(rev)+"</b></div><div><small>Budget pro Karte</small><b>"+fmt(Math.round(per))+"</b></div>";
+$("note").textContent=pick.length<N?"Im aktuellen Datenstamm gibt es nur "+pick.length+" passende Karten. Mit einem größeren Preis-Import wird die Liste voll.":"Aufschläge nach Faustregel aus dem EA-Forum (z. B. 5–10k Marktwert: +3–5k). Nicht alles verkauft sich, Preise regelmäßig anpassen.";
+$("out").hidden=false}
+function gr(){var k=+$("k").value,v=+$("v").value,g=Math.floor(v*.95)-k;$("gr").textContent="Steuer: "+fmt(Math.ceil(v*.05))+" · Gewinn: "+(g>=0?"+":"")+fmt(g)+" Coins"}
+$("go").onclick=gen;$("k").oninput=$("v").oninput=gr;
+init();gr();setInterval(init,18e4);
+</script></body></html>
